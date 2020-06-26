@@ -5,50 +5,74 @@ from GraphMedia import GraphMedia
 class User(object):
     """A User ProfilePage"""
     def __init__(self, node={}):
-        self.biography = node['biography']
-        self.external_url = node['external_url']
-        self.followers = node['edge_followed_by']['count']
-        self.following = node['edge_follow']['count']
-        self.full_name = node['full_name']
-        self.id = node['id']
-        self.is_business_account = node['is_business_account']
-        self.business_category_name = node['business_category_name']
-        self.profile_pic_url_hd = node['profile_pic_url_hd']
-        self.username = node['username']
+        if 'biography' in node:
+            self.biography = node['biography']
+        
+        if 'external_url' in node:
+            self.external_url = node['external_url']
+        
+        if 'edge_followed_by' in node:
+            self.followers = node['edge_followed_by']['count']
 
-        self.current_page = {
-            "has_next_page": node['edge_owner_to_timeline_media']['page_info']['has_next_page'],
-            "end_cursor": node['edge_owner_to_timeline_media']['page_info']['end_cursor']
-        }
+        if 'edge_follow' in node:
+            self.following = node['edge_follow']['count']
 
-        self.posts = {
-            "count": node['edge_owner_to_timeline_media']['count'],
-            "edges": [],
-            "images": 0,
-            "videos": 0
-        }
+        if 'full_name' in node:
+            self.full_name = node['full_name']
 
-        for media in node['edge_owner_to_timeline_media']['edges']:
-            self.posts['edges'].append(GraphMedia(media["node"]))
+        if 'id' in node:
+            self.id = node['id']
 
-        self.related_profiles = []
-        # for profile in node['edge_related_profiles']['edges']:
-        #     self.related_profiles.append({
-        #         "id": profile['node']['id'],
-        #         "full_name": profile['node']['full_name'],
-        #         "profile_pic_url": profile['node']['profile_pic_url'],
-        #         "username": profile['node']['username']
-        #     })
+        if 'is_business_account' in node:
+            self.is_business_account = node['is_business_account']
 
-    @property
-    def username(self):
-        """str:"""
-        print("getter property")
-        return self._username
+        if 'business_category_name' in node:
+            self.business_category_name = node['business_category_name']
 
-    @username.setter
-    def username(self, value):
-        self._username = value
+        if 'profile_pic_url_hd' in node:
+            self.profile_pic_url_hd = node['profile_pic_url_hd']
+
+        if 'username' in node:
+            self.username = node['username']
+
+        if 'edge_owner_to_timeline_media' in node:
+            if 'page_info' in node['edge_owner_to_timeline_media']:
+                self.current_page = {
+                    "has_next_page": node['edge_owner_to_timeline_media']['page_info']['has_next_page'],
+                    "end_cursor": node['edge_owner_to_timeline_media']['page_info']['end_cursor']
+                }
+
+            self.posts = {
+                "count": node['edge_owner_to_timeline_media']['count'],
+                "edges": [],
+                "images": 0,
+                "videos": 0,
+                "saved": 0
+            }
+
+            if 'edges' in node['edge_owner_to_timeline_media']:
+                for media in node['edge_owner_to_timeline_media']['edges']:
+                    self.posts['edges'].append(GraphMedia(media["node"]))
+
+        if 'edge_related_profiles' in node:
+            self.related_profiles = []
+            for profile in node['edge_related_profiles']['edges']:
+                self.related_profiles.append({
+                    "id": profile['node']['id'],
+                    "full_name": profile['node']['full_name'],
+                    "profile_pic_url": profile['node']['profile_pic_url'],
+                    "username": profile['node']['username']
+                })
+
+    # @property
+    # def username(self):
+    #     """str:"""
+    #     print("getter property")
+    #     return self._username
+
+    # @username.setter
+    # def username(self, value):
+    #     self._username = value
 
     def hasNextPage(self):
         return self.current_page['has_next_page']
@@ -87,8 +111,27 @@ class User(object):
 
     def savePage(self):
         for post in self.posts['edges']:
-            post.save()
-        # self.getNextPage()
+            # post._save()
+            if post.typename == 'GraphImage':
+                post.saveGraphImage()
+                self.posts['images'] += 1
+            elif post.typename == 'GraphVideo':
+                # videos have a display_url and video_url
+                post.saveGraphImage()
+                self.posts['images'] += 1
+                post.saveGraphVideo()
+                self.posts['videos'] += 1
+                exit()
+            elif post.typename == 'GraphSidecar':
+                # a sidecar can contain multiple images or videos 
+                post.saveGraphSidecar()
+                self.posts['images'] += 1
+                exit()
+            else:
+                print('new typename', post.typename)
+                exit()
+
+            self.posts['saved'] += 1
     
 
     def toJson(self):
