@@ -24,10 +24,11 @@ class GraphMedia:
             self.display_url = node['display_url']
 
         if 'owner' in node:
-            self.owner = {
-                "id": node['owner']['id'],
-                "username": node['owner']['username']
-            }
+            # self.owner = {
+            #     "id": node['owner']['id'],
+            #     "username": node['owner']['username']
+            # }
+            self.owner = node['owner']
 
         if 'is_video' in node:
             self.is_video = node['is_video']
@@ -101,7 +102,6 @@ class GraphMedia:
     def saveGraphImage(self, args, mediaDir):
         filename = self._save(self.display_url, mediaDir, args, args.getImages)
         if filename.exists():
-            print(self)
             # initialize variables
             owner = caption = application = date_time_original = ''
             ts = datetime.now().timestamp()
@@ -109,6 +109,7 @@ class GraphMedia:
             # owner should be the same as the current profile, but 
             # get it off the node since it is there
             application = 'Instagram'
+            print(filename)
             owner = self.owner['username']
 
             if hasattr(self, 'caption'):

@@ -156,10 +156,9 @@ class User(object):
                         child.location = post.location
                     if hasattr(post, 'taken_at_timestamp'):
                         child.taken_at_timestamp = post.taken_at_timestamp
-                    if hasattr(post, 'username'):
-                        child.owner = post.username
-                    else:
-                        child.owner = args.username
+                    if hasattr(post, 'owner'):
+                        # sometimes the sidecar child will have their own owner attribute
+                        child.owner = post.owner
                     
                     if child.typename == 'GraphImage':
                         filename = child.saveGraphImage(args, mediaDir)
