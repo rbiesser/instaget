@@ -4,3 +4,5 @@ profiles/
 
 __pychache__
 *.pyc
+
+.vscode
