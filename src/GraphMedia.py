@@ -1,7 +1,8 @@
 import json
 import requests
 from pathlib import Path
-
+import os
+from datetime import datetime
 from PIL import Image
 import piexif
 
@@ -68,57 +69,56 @@ class GraphMedia:
                 "slug": node['location']['slug']
             }
 
-    def _save(self, url, mediaDir, get=True):
+    def _save(self, url, mediaDir, args, saveFile=True):
         filename = mediaDir / Path(url).name.split('?')[0]
+
+        # print(self)
         
-        if get == True:
+        if saveFile:
             if filename.exists():
-                print('STOP', filename.name, filename.stat().st_size)
-                # return filename
-                return False
+                if args.resume:
+                    print('SKIP', self.typename, filename.name, filename.stat().st_size)
+                    return filename
+                else:
+                    print('STOP', self.typename, filename.name, filename.stat().st_size)
+                    # stop after finding the first post that has already been retrieved
+                    raise Exception('no new posts')
             else:
                 # get the file
                 r = requests.get(url)
                 print(r.request.method, r.request.url, r.status_code)
 
                 open(filename, 'wb').write(r.content)
-                print('SAVE', filename.name, filename.stat().st_size)
-
+                print('SAVE', self.typename, filename.name, filename.stat().st_size)
+                
                 return filename
         
         else:
-            print('SKIP', filename.name, filename.stat().st_size)
-            return True
+            print('SKIP', self.typename, filename.name, '-')
+            return filename
 
 
     def saveGraphImage(self, args, mediaDir):
-        # print(self.typename)
-        # print(args)
-        print(self)
-        filename = self._save(self.display_url, mediaDir, args.getImages)
-        if filename and filename.exists():
-            # update exif info
+        filename = self._save(self.display_url, mediaDir, args, args.getImages)
+        if filename.exists():
+            print(self)
             # initialize variables
             owner = caption = application = date_time_original = ''
-            ts = 0
+            ts = datetime.now().timestamp()
 
-            # owner should be the same as the current profile, but we'll get it off the node since it is there
+            # owner should be the same as the current profile, but 
+            # get it off the node since it is there
             application = 'Instagram'
             owner = self.owner['username']
+
             if hasattr(self, 'caption'):
                 caption = self.caption.encode('utf-8')
-            # else:
-            #     logging.info('caption not available')
+
             if hasattr(self, 'taken_at_timestamp'):
                 ts = self.taken_at_timestamp
                 date_time_original = datetime.utcfromtimestamp(self.taken_at_timestamp).strftime('%Y-%m-%d %H:%M:%S')
-            else:
-                # I think I fixed this part
-                print('self.taken_at_timestamp')
-                exit()
-                # node = shortcode_media_query(node['shortcode'])
-                # date_time_original = datetime.utcfromtimestamp(node['taken_at_timestamp']).strftime('%Y-%m-%d %H:%M:%S')
-
+            
+            # update exif info
             img = Image.open(filename)
             zeroth_ifd = {
                 piexif.ImageIFD.Artist: owner,
@@ -134,24 +134,26 @@ class GraphMedia:
             exif_bytes = piexif.dump(exif_dict)
             img.save(filename, exif=exif_bytes)
 
+            # change create, modified timestamp
             os.utime(filename, (ts,ts))
 
         return filename
 
     def saveGraphVideo(self, args, mediaDir):
-        # print(self.typename)
-        return self._save(self.video_url, mediaDir, args.getVideos)
+        filename = self._save(self.video_url, mediaDir, args, args.getVideos)
+        if filename.exists():
+            ts = datetime.now().timestamp()
+            if hasattr(self, 'taken_at_timestamp'):
+                ts = self.taken_at_timestamp
 
-    # these are probably not needed, but need to find 
-    # where to put the download code.
+            # change create, modified timestamp
+            os.utime(filename, (ts,ts))
 
+        return filename
+        
     def saveGraphSidecar(self, args, mediaDir):
-        # print(self.typename)
-        # not needed since first child is duplicate of sidecar
-        return self._save(self.display_url, mediaDir, False)
-        # print(self.sidecar)
-        # exit()
-
+        # not needed to save since first child is duplicate of sidecar
+        return self._save(self.display_url, mediaDir, args, False)
 
     def toJson(self):
         """dump json"""

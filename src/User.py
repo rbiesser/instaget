@@ -82,7 +82,7 @@ class User(object):
         return self.current_page['has_next_page']
 
     def getNextPage(self):
-        print(self.current_page['end_cursor'])
+        print('CURSOR', self.current_page['end_cursor'])
         # keep object with full list of posts or delete and populate with each page?
 
         query_hash = '9dcf6e1a98bc7f6e92953d5a61027b98'
@@ -114,6 +114,7 @@ class User(object):
 
         self.posts['pages'] += 1
 
+        # overwrite nextPage.json
         return next_page
 
     def savePage(self, args, mediaDir):
@@ -122,37 +123,31 @@ class User(object):
         # profile updates the display and returns control
         for post in self.posts['edges']:
             if self.posts['saved'] == args.limit:
-                return
+                raise Exception('STOP limit reached')
 
-            # post._save()
             if post.typename == 'GraphImage':
                 filename = post.saveGraphImage(args, mediaDir)
-                # True == continue, False == exit
-                if filename:
-                    if filename.exists():
-                        self.posts['bytes'] += filename.stat().st_size
-                        self.posts['images'] += 1
-                else:
-                    return
-                    # break
+                self.posts['images'] += 1
+                if filename.exists():
+                    self.posts['bytes'] += filename.stat().st_size
+                    
             elif post.typename == 'GraphVideo':
                 # videos have both a display_url and video_url
                 # saveGraphVideo needs to specifically tell save to use video_url
                 filename = post.saveGraphImage(args, mediaDir)
-                if filename:
+                self.posts['images'] += 1
+                if filename.exists():
                     self.posts['bytes'] += filename.stat().st_size
-                    self.posts['images'] += 1
 
                 filename = post.saveGraphVideo(args, mediaDir)
-                if filename:
+                self.posts['videos'] += 1
+                if filename.exists():
                     self.posts['bytes'] += filename.stat().st_size
-                    self.posts['videos'] += 1
-                # exit()
+
             elif post.typename == 'GraphSidecar':
                 # a sidecar can contain multiple images or videos 
                 # the sidecar display_url matches the first child
-                post.saveGraphSidecar(args)
-                # print(post.location, post.taken_at_timestamp)
+                post.saveGraphSidecar(args, mediaDir)
                 for child in post.sidecar['edges']:
                     # share the sidecar attributes with the children
                     if hasattr(post, 'shortcode'):
@@ -163,24 +158,26 @@ class User(object):
                         child.taken_at_timestamp = post.taken_at_timestamp
                     if hasattr(post, 'username'):
                         child.owner = post.username
+                    else:
+                        child.owner = args.username
                     
                     if child.typename == 'GraphImage':
                         filename = child.saveGraphImage(args, mediaDir)
-                        if filename:
+                        self.posts['images'] += 1
+                        if filename.exists():
                             self.posts['bytes'] += filename.stat().st_size
-                            self.posts['images'] += 1
                     elif child.typename == 'GraphVideo':
                         # videos have a display_url and video_url
                         filename = child.saveGraphImage(args, mediaDir)
-                        if filename:
+                        self.posts['images'] += 1
+                        if filename.exists():
                             self.posts['bytes'] += filename.stat().st_size
-                            self.posts['images'] += 1
                         
                         filename = child.saveGraphVideo(args, mediaDir)
-                        if filename:
+                        self.posts['videos'] += 1
+                        if filename.exists():
                             self.posts['bytes'] += filename.stat().st_size
-                            self.posts['videos'] += 1
-                        # exit()
+                            
                     else:
                         print('new typename in a sidecar', child.typename)
                         exit()
@@ -189,8 +186,8 @@ class User(object):
                 print('new typename', post.typename)
                 exit()
 
+            # for each post
             self.posts['saved'] += 1
-    
 
     def toJson(self):
         """dump json"""
