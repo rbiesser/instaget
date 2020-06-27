@@ -100,14 +100,14 @@ if profile.posts['count'] >= lastRun.posts['count']:
         relatedJson.write_text(json.dumps(profile.related_profiles, indent=2))
 
     # get posts until you reach a post you already have
-    profile.savePage(args)
+    profile.savePage(args, mediaDir)
 
     while profile.hasNextPage():
         if profile.posts['saved'] == args.limit:
             break
         nextPageJson = profileDir / 'json' / 'nextPage.json'
         nextPageJson.write_text(json.dumps(profile.getNextPage(), indent=2))
-        profile.savePage(args)
+        profile.savePage(args, mediaDir)
 
     # eventually do this...
     # while profile.hasNextPage():

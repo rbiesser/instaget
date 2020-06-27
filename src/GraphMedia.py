@@ -2,6 +2,9 @@ import json
 import requests
 from pathlib import Path
 
+from PIL import Image
+import piexif
+
 class GraphMedia:
     """base class for graph media"""
     def __init__(self, node={}):
@@ -14,10 +17,16 @@ class GraphMedia:
         if 'shortcode' in node:
             self.shortcode = node['shortcode']
         
-        # dimensions
+        # dimensions, only useful for ui, get from file
 
         if 'display_url' in node:
             self.display_url = node['display_url']
+
+        if 'owner' in node:
+            self.owner = {
+                "id": node['owner']['id'],
+                "username": node['owner']['username']
+            }
 
         if 'is_video' in node:
             self.is_video = node['is_video']
@@ -59,38 +68,87 @@ class GraphMedia:
                 "slug": node['location']['slug']
             }
 
-    def _save(self, url, skip=True):
-        size = 0
+    def _save(self, url, mediaDir, get=True):
+        filename = mediaDir / Path(url).name.split('?')[0]
         
-        if skip == True:
-            rcvdBytes = 'skipped'
+        if get == True:
+            if filename.exists():
+                print('STOP', filename.name, filename.stat().st_size)
+                # return filename
+                return False
+            else:
+                # get the file
+                r = requests.get(url)
+                print(r.request.method, r.request.url, r.status_code)
+
+                open(filename, 'wb').write(r.content)
+                print('SAVE', filename.name, filename.stat().st_size)
+
+                return filename
+        
         else:
-            # get the file
-            rcvdBytes = size
+            print('SKIP', filename.name, filename.stat().st_size)
+            return True
 
-        print(self.typename
-            , self.shortcode
-            , url
-            , rcvdBytes
-        )
 
-        return size
-
-    def saveGraphImage(self, args):
+    def saveGraphImage(self, args, mediaDir):
         # print(self.typename)
-        return self._save(self.display_url, args.getImages)
+        # print(args)
+        print(self)
+        filename = self._save(self.display_url, mediaDir, args.getImages)
+        if filename and filename.exists():
+            # update exif info
+            # initialize variables
+            owner = caption = application = date_time_original = ''
+            ts = 0
 
-    def saveGraphVideo(self, args):
+            # owner should be the same as the current profile, but we'll get it off the node since it is there
+            application = 'Instagram'
+            owner = self.owner['username']
+            if hasattr(self, 'caption'):
+                caption = self.caption.encode('utf-8')
+            # else:
+            #     logging.info('caption not available')
+            if hasattr(self, 'taken_at_timestamp'):
+                ts = self.taken_at_timestamp
+                date_time_original = datetime.utcfromtimestamp(self.taken_at_timestamp).strftime('%Y-%m-%d %H:%M:%S')
+            else:
+                # I think I fixed this part
+                print('self.taken_at_timestamp')
+                exit()
+                # node = shortcode_media_query(node['shortcode'])
+                # date_time_original = datetime.utcfromtimestamp(node['taken_at_timestamp']).strftime('%Y-%m-%d %H:%M:%S')
+
+            img = Image.open(filename)
+            zeroth_ifd = {
+                piexif.ImageIFD.Artist: owner,
+                piexif.ImageIFD.ImageDescription: caption,
+                piexif.ImageIFD.Software: application
+            }
+            exif_ifd = {
+                # piexif.ExifIFD.UserComment: b"comment",
+                piexif.ExifIFD.DateTimeOriginal: date_time_original,
+            }
+
+            exif_dict = {"0th": zeroth_ifd, "Exif": exif_ifd}
+            exif_bytes = piexif.dump(exif_dict)
+            img.save(filename, exif=exif_bytes)
+
+            os.utime(filename, (ts,ts))
+
+        return filename
+
+    def saveGraphVideo(self, args, mediaDir):
         # print(self.typename)
-        return self._save(self.video_url, args.getVideos)
+        return self._save(self.video_url, mediaDir, args.getVideos)
 
     # these are probably not needed, but need to find 
     # where to put the download code.
 
-    def saveGraphSidecar(self, args):
+    def saveGraphSidecar(self, args, mediaDir):
         # print(self.typename)
         # not needed since first child is duplicate of sidecar
-        return self._save(self.display_url, True)
+        return self._save(self.display_url, mediaDir, False)
         # print(self.sidecar)
         # exit()
 

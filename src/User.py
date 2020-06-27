@@ -1,6 +1,7 @@
 import json
 import requests
 from GraphMedia import GraphMedia
+from datetime import datetime
 
 class User(object):
     """A User ProfilePage"""
@@ -48,6 +49,7 @@ class User(object):
                 "images": 0,
                 "videos": 0,
                 "saved": 0,
+                "skipped": 0,
                 "pages": 1,
                 "bytes": 0
             }
@@ -114,26 +116,37 @@ class User(object):
 
         return next_page
 
-    def savePage(self, args):
+    def savePage(self, args, mediaDir):
+        # split the save logic between the profile and GraphMedia
+        # GraphMedia handles download and saving
+        # profile updates the display and returns control
         for post in self.posts['edges']:
             if self.posts['saved'] == args.limit:
                 return
 
             # post._save()
             if post.typename == 'GraphImage':
-                rcvdBytes = post.saveGraphImage(args)
-                self.posts['bytes'] += rcvdBytes
-                self.posts['images'] += 1
+                filename = post.saveGraphImage(args, mediaDir)
+                # True == continue, False == exit
+                if filename:
+                    if filename.exists():
+                        self.posts['bytes'] += filename.stat().st_size
+                        self.posts['images'] += 1
+                else:
+                    return
+                    # break
             elif post.typename == 'GraphVideo':
                 # videos have both a display_url and video_url
                 # saveGraphVideo needs to specifically tell save to use video_url
-                rcvdBytes = post.saveGraphImage(args)
-                self.posts['bytes'] += rcvdBytes
-                self.posts['images'] += 1
+                filename = post.saveGraphImage(args, mediaDir)
+                if filename:
+                    self.posts['bytes'] += filename.stat().st_size
+                    self.posts['images'] += 1
 
-                rcvdBytes = post.saveGraphVideo(args)
-                self.posts['bytes'] += rcvdBytes
-                self.posts['videos'] += 1
+                filename = post.saveGraphVideo(args, mediaDir)
+                if filename:
+                    self.posts['bytes'] += filename.stat().st_size
+                    self.posts['videos'] += 1
                 # exit()
             elif post.typename == 'GraphSidecar':
                 # a sidecar can contain multiple images or videos 
@@ -148,20 +161,25 @@ class User(object):
                         child.location = post.location
                     if hasattr(post, 'taken_at_timestamp'):
                         child.taken_at_timestamp = post.taken_at_timestamp
+                    if hasattr(post, 'username'):
+                        child.owner = post.username
                     
                     if child.typename == 'GraphImage':
-                        rcvdBytes = child.saveGraphImage(args)
-                        self.posts['bytes'] += rcvdBytes
-                        self.posts['images'] += 1
+                        filename = child.saveGraphImage(args, mediaDir)
+                        if filename:
+                            self.posts['bytes'] += filename.stat().st_size
+                            self.posts['images'] += 1
                     elif child.typename == 'GraphVideo':
                         # videos have a display_url and video_url
-                        rcvdBytes = child.saveGraphImage(args)
-                        self.posts['bytes'] += rcvdBytes
-                        self.posts['images'] += 1
+                        filename = child.saveGraphImage(args, mediaDir)
+                        if filename:
+                            self.posts['bytes'] += filename.stat().st_size
+                            self.posts['images'] += 1
                         
-                        rcvdBytes = child.saveGraphVideo(args)
-                        self.posts['bytes'] += rcvdBytes
-                        self.posts['videos'] += 1
+                        filename = child.saveGraphVideo(args, mediaDir)
+                        if filename:
+                            self.posts['bytes'] += filename.stat().st_size
+                            self.posts['videos'] += 1
                         # exit()
                     else:
                         print('new typename in a sidecar', child.typename)
