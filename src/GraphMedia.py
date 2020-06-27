@@ -22,6 +22,12 @@ class GraphMedia:
         if 'is_video' in node:
             self.is_video = node['is_video']
 
+        if 'video_url' in node:
+            self.video_url = node['video_url']
+
+        if 'video_view_count' in node:
+            self.video_view_count = node['video_view_count']
+
         if 'edge_sidecar_to_children' in node and node['edge_sidecar_to_children']['edges']:
             self.sidecar = {
                 "edges": []
@@ -32,7 +38,7 @@ class GraphMedia:
         if 'edge_media_to_caption' in node and node['edge_media_to_caption']['edges']:
             self.caption = node['edge_media_to_caption']['edges'][0]['node']['text']
         
-        if 'take_at_timestamp' in node:
+        if 'taken_at_timestamp' in node:
             self.taken_at_timestamp = node['taken_at_timestamp']
         
         if 'edge_media_to_comment' in node:
@@ -53,24 +59,40 @@ class GraphMedia:
                 "slug": node['location']['slug']
             }
 
-    def _save(self):
+    def _save(self, url, skip=True):
+        size = 0
+        
+        if skip == True:
+            rcvdBytes = 'skipped'
+        else:
+            # get the file
+            rcvdBytes = size
+
         print(self.typename
             , self.shortcode
-            , self.display_url
-            # , self.is_video
+            , url
+            , rcvdBytes
         )
 
-    def saveGraphImage(self):
-        # print(self.typename)
-        self._save()
+        return size
 
-    def saveGraphVideo(self):
+    def saveGraphImage(self, args):
         # print(self.typename)
-        self._save()
+        return self._save(self.display_url, args.getImages)
 
-    def saveGraphSidecar(self):
+    def saveGraphVideo(self, args):
         # print(self.typename)
-        self._save()
+        return self._save(self.video_url, args.getVideos)
+
+    # these are probably not needed, but need to find 
+    # where to put the download code.
+
+    def saveGraphSidecar(self, args):
+        # print(self.typename)
+        # not needed since first child is duplicate of sidecar
+        return self._save(self.display_url, True)
+        # print(self.sidecar)
+        # exit()
 
 
     def toJson(self):

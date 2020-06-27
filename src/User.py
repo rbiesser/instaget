@@ -47,7 +47,9 @@ class User(object):
                 "edges": [],
                 "images": 0,
                 "videos": 0,
-                "saved": 0
+                "saved": 0,
+                "pages": 1,
+                "bytes": 0
             }
 
             if 'edges' in node['edge_owner_to_timeline_media']:
@@ -96,6 +98,7 @@ class User(object):
             }
         )
 
+        print(r.request.method, r.request.url, r.status_code)
         next_page = json.loads(r.text)
         next_page_media = next_page['data']['user']['edge_owner_to_timeline_media']
 
@@ -107,26 +110,63 @@ class User(object):
         for media in next_page_media['edges']:
             self.posts['edges'].append(GraphMedia(media["node"]))
 
+        self.posts['pages'] += 1
+
         return next_page
 
-    def savePage(self):
+    def savePage(self, args):
         for post in self.posts['edges']:
+            if self.posts['saved'] == args.limit:
+                return
+
             # post._save()
             if post.typename == 'GraphImage':
-                post.saveGraphImage()
+                rcvdBytes = post.saveGraphImage(args)
+                self.posts['bytes'] += rcvdBytes
                 self.posts['images'] += 1
             elif post.typename == 'GraphVideo':
-                # videos have a display_url and video_url
-                post.saveGraphImage()
+                # videos have both a display_url and video_url
+                # saveGraphVideo needs to specifically tell save to use video_url
+                rcvdBytes = post.saveGraphImage(args)
+                self.posts['bytes'] += rcvdBytes
                 self.posts['images'] += 1
-                post.saveGraphVideo()
+
+                rcvdBytes = post.saveGraphVideo(args)
+                self.posts['bytes'] += rcvdBytes
                 self.posts['videos'] += 1
-                exit()
+                # exit()
             elif post.typename == 'GraphSidecar':
                 # a sidecar can contain multiple images or videos 
-                post.saveGraphSidecar()
-                self.posts['images'] += 1
-                exit()
+                # the sidecar display_url matches the first child
+                post.saveGraphSidecar(args)
+                # print(post.location, post.taken_at_timestamp)
+                for child in post.sidecar['edges']:
+                    # share the sidecar attributes with the children
+                    if hasattr(post, 'shortcode'):
+                        child.shortcode = post.shortcode
+                    if hasattr(post, 'location'):
+                        child.location = post.location
+                    if hasattr(post, 'taken_at_timestamp'):
+                        child.taken_at_timestamp = post.taken_at_timestamp
+                    
+                    if child.typename == 'GraphImage':
+                        rcvdBytes = child.saveGraphImage(args)
+                        self.posts['bytes'] += rcvdBytes
+                        self.posts['images'] += 1
+                    elif child.typename == 'GraphVideo':
+                        # videos have a display_url and video_url
+                        rcvdBytes = child.saveGraphImage(args)
+                        self.posts['bytes'] += rcvdBytes
+                        self.posts['images'] += 1
+                        
+                        rcvdBytes = child.saveGraphVideo(args)
+                        self.posts['bytes'] += rcvdBytes
+                        self.posts['videos'] += 1
+                        # exit()
+                    else:
+                        print('new typename in a sidecar', child.typename)
+                        exit()
+
             else:
                 print('new typename', post.typename)
                 exit()

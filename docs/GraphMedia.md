@@ -13,6 +13,8 @@ Three basic types of media:
 - Can be any combination of the other two types.
 - Does not contain any additional attributes without making request to the shortcode page.
 - Does have the caption and display_url
+- For the GraphSidecar, taken_at_timestamp, caption and location, etc. come from the GraphSidecar and not repeated for each edge_sidecar_to_children.
+- It looks like the only thing you don't get without making shortcode requests is tagged users and commenters.
 
 
 
