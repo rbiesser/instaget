@@ -105,6 +105,8 @@ if profile.posts['count'] >= lastRun.posts['count']:
 
     try:
         # get posts until you reach a post you already have
+        # if the file exists, no new request is made, but metadata will be updated.
+        # runing with --resume will make a request for each new page.
         profile.savePage(args, mediaDir)
 
         while profile.hasNextPage():
@@ -112,6 +114,10 @@ if profile.posts['count'] >= lastRun.posts['count']:
             nextPageJson.write_text(json.dumps(profile.getNextPage(), indent=2))
             profile.savePage(args, mediaDir)
    
+    except KeyboardInterrupt:
+        # exit gracefully
+        print('\nexiting')
+        pass
     except Exception as e:
         print(e)
 
@@ -130,7 +136,7 @@ if profile.posts['count'] >= lastRun.posts['count']:
             , f'containing {profile.posts["saved"]} post{s[sp(profile.posts["saved"])]}'
             , f'with {profile.posts["images"]} image{s[sp(profile.posts["images"])]}'
             , f'and {profile.posts["videos"]} video{s[sp(profile.posts["videos"])]}'
-            , f'totalling {sizeof_fmt(profile.posts["bytes"])} byte{s[sp(profile.posts["bytes"])]}.' if args.dryRun == False else ''
+            , f'totalling {sizeof_fmt(profile.posts["bytes"])}.' if args.dryRun == False else ''
             , '\nrun again with the -b flag to get all images and videos or --help for more options.' if args.dryRun else ''
         )
 

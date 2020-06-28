@@ -101,6 +101,7 @@ class GraphMedia:
 
     def saveGraphImage(self, args, mediaDir):
         filename = self._save(self.display_url, mediaDir, args, args.getImages)
+        # metadata gets updated whether file was just saved or skipped
         if filename.exists():
             # initialize variables
             owner = caption = application = date_time_original = ''
@@ -109,7 +110,6 @@ class GraphMedia:
             # owner should be the same as the current profile, but 
             # get it off the node since it is there
             application = 'Instagram'
-            print(filename)
             owner = self.owner['username']
 
             if hasattr(self, 'caption'):

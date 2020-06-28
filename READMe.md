@@ -7,6 +7,13 @@ python instaget.py <username>
 python instaget.py --help
 ```
 
+### Fetch newest
+```bash
+python instaget.py <username> -bf
+```
+- Get the latest profile metadata and exit after finding the first post that has already been retrieved.
+- You must tell instaget what to get or it will perform dry run by default.
+
 ## Help
 ```bash
 usage: instaget.py <username>
@@ -19,7 +26,7 @@ optional arguments:
   -i, --images   Get only images
   -V, --videos   Get only videos
   -b, --both     Get all images and videos, same as -iV
-  -f, --fetch    Fetch latest profile
+  -f, --fetch    Fetch latest profile metadata
   -r, --resume   Resume a previous session
   --limit LIMIT  Get the newest n posts
   --dry-run      Skip downloading is the default
